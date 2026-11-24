@@ -4,7 +4,7 @@ cncaS2 is a Firefox extension for requesting AI suggestions on Moodle questions.
 
 ## Use
 
-Hover over a supported question and press Alt+Z. Open the toolbar popup to read the answer and explanation. Hold Shift to preview an answer on the page. Repeated questions on the same page can reuse a result from memory. Review suggestions before relying on them.
+Hover over a supported question and press Alt+Z. Open the toolbar popup to read the answer and explanation. Hold Shift after Alt+Z to see the answer and explanation. The first hold sends question text to Google in a background tab. The extension uses up to three search excerpts to explain or correct the answer and shows when sources are unavailable. Release Shift to close the preview. Repeated questions on the same page can reuse a result from memory. Review suggestions before relying on them.
 
 ## Build and test
 
@@ -25,4 +25,4 @@ npx wrangler login
 npx wrangler deploy
 ```
 
-The public extension calls /public/answer and /public/diagram. It sends the selected question and its options when requested. The diagram button also sends the chosen image. The Worker rate limit is configured at 12 requests per minute using a shared key. Legacy invite-protected clients can use the separate /answer and /diagram endpoints when the operator configures the BETA_INVITE Worker secret.
+The public extension calls /public/answer, /public/diagram and /public/explain. It sends the selected question and its options when requested. The diagram button also sends the chosen image. The Worker rate limit is configured at 12 requests per minute using a shared key. Legacy invite-protected clients can use the separate /answer and /diagram endpoints when the operator configures the BETA_INVITE Worker secret.

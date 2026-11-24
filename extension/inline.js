@@ -1,7 +1,8 @@
 (async()=>{
-  function enablePeek(controller){
+  function enablePeek(controller, stem){
     let answer="", held=false, ready=false;
-    let box,timer;
+    let box,timer,lookup,explanation="",detail="";
+    let usable=false;
     const hide=()=>{
       held=false;ready=false;
       clearTimeout(timer);
@@ -9,9 +10,16 @@
       box=null;
     };
     function show(){
-      if(!held || !ready || !answer || box || controller.signal.aborted)return;
+      if(!held || !ready || !answer || controller.signal.aborted)return;
+      if(!lookup && usable){
+        lookup=browser.runtime.sendMessage({kind:"quizpilot-explain",stem,answer,reason:explanation}).then(result=>{
+          detail=result.text;show();
+        }).catch(()=>{detail="Explanation lookup unavailable.";show();});
+      }
+      const text=[answer,detail || explanation,detail ? "" : "Checking Google…"].filter(Boolean).join("\n\n");
+      if(box){box.textContent=text;if(box.scrollHeight>box.clientHeight+1){box.style.width="min(330px,90vw)";box.style.maxHeight="min(8.2em,35vh)";}return;}
         box=document.createElement("div");
-        box.textContent=answer;
+        box.textContent=text;
         box.style.cssText="position:fixed;bottom:12px;right:12px;z-index:2147483647;box-sizing:border-box;width:min(300px,90vw);max-height:5.5em;overflow:auto;background:#192326;color:white;border-radius:5px;padding:6px 9px;font:13px/1.4 system-ui;white-space:pre-wrap;overflow-wrap:anywhere";
         document.body.append(box);
         if(box.scrollHeight>box.clientHeight+1){
@@ -28,7 +36,7 @@
         return;
       }
       if(event.key!=="Shift"){hide();return;}
-      if(event.repeat || event.altKey || event.ctrlKey || event.metaKey)return;
+      if(event.target?.closest?.('input:not([type=radio]):not([type=checkbox]),textarea,[contenteditable=true]') || event.repeat || event.altKey || event.ctrlKey || event.metaKey)return;
       hide();
       held=true;
       timer=setTimeout(()=>{ready=true;show();},250);
@@ -38,7 +46,7 @@
     document.addEventListener("visibilitychange",hide,listen);
     window.addEventListener("pagehide",()=>controller.abort(),listen);
     controller.signal.addEventListener("abort",hide,{once:true});
-    return text=>{answer=text;show();};
+    return (text,reason="")=>{answer=text;explanation=reason;usable=true;show();};
   }
   const visible=Array.from(document.querySelectorAll(".que")).filter(block=>{
     const box=block.getBoundingClientRect();
@@ -100,7 +108,11 @@
         const ctx=canvas.getContext("2d");
         ctx.fillStyle="white";ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(diagram,0,0,canvas.width,canvas.height);
         const image=canvas.toDataURL("image/jpeg",0.8);
-        await browser.runtime.sendMessage({kind:"quizpilot-answer",stem:stem || "Describe the diagram.",choices,multiple:fields.some(f=>f.type==="checkbox"),image});
+        const result=await browser.runtime.sendMessage({kind:"quizpilot-answer",stem:stem || "Describe the diagram.",choices,multiple:fields.some(f=>f.type==="checkbox"),image});
+        globalThis.quizpilotPeek?.abort();
+        const peek=new AbortController();
+        globalThis.quizpilotPeek=peek;
+        enablePeek(peek,stem || "Explain the diagram answer.")(result.answer);
         note(block,"Diagram answer is in the cncaS2 popup.");
       }catch(error){note(block,error.message);}
       finally{send.remove();}
@@ -113,7 +125,7 @@
   globalThis.quizpilotPeek?.abort();
   const peek=new AbortController();
   globalThis.quizpilotPeek=peek;
-  const setPeek=enablePeek(peek);
+  const setPeek=enablePeek(peek,stem);
   block.dataset.quizpilotBusy="1";
   try{
     const data=await browser.runtime.sendMessage({kind:"quizpilot-answer",stem,choices,multiple:fields.some(f=>f.type==="checkbox")});
@@ -128,7 +140,7 @@
       style.textContent=".que .quizpilot-mark{display:none;position:absolute;width:3px;height:3px;background:#fff;box-shadow:0 0 0 1px #8886;margin-inline-start:3px;pointer-events:none}.que :hover > .quizpilot-mark{display:inline-block}";
       document.head.append(style);
     }
-    setPeek(data.positions.map(i=>choices[i-1]).join("\n"));
+    setPeek(data.positions.map(i=>choices[i-1]).join("\n"),data.explanation);
     for(const i of data.positions){
       const mark=document.createElement("span");
       mark.className="quizpilot-mark";mark.setAttribute("role","img");mark.setAttribute("aria-label","cncaS2 suggested answer");

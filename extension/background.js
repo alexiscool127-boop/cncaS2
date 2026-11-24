@@ -58,3 +58,40 @@ browser.commands.onCommand.addListener(async command=>{
   try{await browser.tabs.executeScript(tab.id,{file:"inline.js"});}
   catch{await browser.browserAction.setBadgeText({tabId:tab.id,text:"!"});}
 });
+
+async function searchExcerpts(stem){
+  const url=new URL("https://www.google.com/search");
+  url.searchParams.set("q",stem.split("\nGive a numbered answer")[0].slice(0,280));
+  const tab=await browser.tabs.create({url:url.href,active:false});
+  try{
+    for(let i=0;i<12;i++){
+      await new Promise(resolve=>setTimeout(resolve,500));
+      try{
+        const [sources]=await browser.tabs.executeScript(tab.id,{file:"search-results.js"});
+        if(sources?.length)return sources;
+      }catch{/* The results page may still be navigating. */}
+    }
+    return [];
+  }finally{
+    const current=await browser.tabs.get(tab.id).catch(()=>null);
+    if(current && !current.active)await browser.tabs.remove(tab.id).catch(()=>{});
+  }
+}
+browser.runtime.onMessage.addListener((q,sender)=>{
+  if(!sender.tab || sender.id!==browser.runtime.id || q?.kind!=="quizpilot-explain")return;
+  return (async()=>{
+    const sources=await searchExcerpts(q.stem).catch(()=>[]);
+    const labels=sources.map((s,i)=>"["+ (i+1) +"] "+s.host+" — "+s.title);
+    const status=sources.length?labels.join("\n"):"Google returned no usable sources.";
+    try{
+      const response=await fetch(QUIZPILOT_ORIGIN+"/public/explain",{
+        method:"POST",credentials:"omit",redirect:"error",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({stem:q.stem.slice(0,1800),answer:q.answer.slice(0,600),sources:sources.map((s,i)=>labels[i]+": "+s.snippet)}),
+        signal:AbortSignal.timeout(25000)
+      });
+      if(!response.ok)throw Error();
+      const data=await response.json();
+      return {text:data.text+"\n\n"+status};
+    }catch{return {text:[q.reason || "Explanation unavailable.",status].join("\n\n")};}
+  })();
+});
