@@ -98,7 +98,8 @@
   const fields=[...block.querySelectorAll('.answer input[type="radio"],.answer input[type="checkbox"]')];
   const rows=fields.map(f=>f.closest(".r0,.r1") || f.labels?.[0] || f.parentElement);
   const choices=rows.map(row=>row.innerText.trim());
-  block.querySelectorAll(".quizpilot-mark").forEach(node=>node.remove());
+  block.quizpilotHover?.abort();
+  block.querySelectorAll(".quizpilot-mark,.quizpilot-corner").forEach(node=>node.remove());
   block.querySelector(":scope > .quizpilot-note")?.remove();
   const diagram=questionText?.querySelector("img");
   if(diagram && questionText.querySelectorAll("img").length===1 && !block.querySelector(".answer img,.qtext svg,.qtext canvas,.qtext video,.qtext iframe")){
@@ -143,17 +144,28 @@
       return;
     }
     if(!Array.isArray(data.positions) || !data.positions.length || data.positions.some(i=>!Number.isInteger(i)||!rows[i-1]))throw Error("No clear choice returned.");
-    if(!document.getElementById("quizpilot-hover-style")){
-      const style=document.createElement("style");
-      style.id="quizpilot-hover-style";
-      style.textContent=".que .quizpilot-mark{display:none;position:absolute;width:3px;height:3px;background:#fff;box-shadow:0 0 0 1px #8886;margin-inline-start:3px;pointer-events:none}.que :hover > .quizpilot-mark{display:inline-block}";
-      document.head.append(style);
-    }
     setPeek(data.positions.map(i=>choices[i-1]).join("\n"),data.explanation);
-    for(const i of data.positions){
-      const mark=document.createElement("span");
-      mark.className="quizpilot-mark";mark.setAttribute("role","img");mark.setAttribute("aria-label","cncaS2 suggested answer");
-      rows[i-1].append(mark);
+
+    const marker=document.createElement("span");
+    marker.className="quizpilot-corner";
+    marker.style.cssText="position:fixed;top:2px;left:3px;z-index:2147483647;pointer-events:none;font:11px/1.2 system-ui;color:inherit";
+    marker.hidden=true;
+    document.body.append(marker);
+    const selected=new Set(data.positions);
+    function display(index){
+      marker.hidden=index<0;
+      if(index<0)return;
+      const number=index+1;
+      marker.textContent=number+(selected.has(number)?" \u2713":" \u00d7");
+      marker.setAttribute("aria-label","Option "+number+(selected.has(number)?", suggested":", not suggested"));
     }
+    const hover=new AbortController();
+    block.quizpilotHover=hover;
+    hover.signal.addEventListener("abort",()=>marker.remove(),{once:true});
+    rows.forEach((row,index)=>{
+      row.addEventListener("pointerenter",()=>display(index),{signal:hover.signal});
+      row.addEventListener("pointerleave",()=>display(-1),{signal:hover.signal});
+    });
+    display(rows.findIndex(row=>row.matches(":hover")));
   }catch(e){note(block,e.message);}finally{delete block.dataset.quizpilotBusy;}
 })();
