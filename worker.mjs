@@ -1,4 +1,10 @@
 import {calculationFacts} from "./calculations.mjs";
+function needsNumericAnswer(stem, choices) {
+  if (choices.length || /\b(?:explain|describe|justify)\b/i.test(stem)) return false;
+  return /\b(?:how many|how much|calculate|compute|convert|decimal value|binary string|broadcast address|subnet mask)\b/i.test(stem)
+    || /\b(?:return|give|enter|write|express|represent|encode|decode)\b[^.!?\n]{0,80}\b(?:number|integer|digits?|bits?|binary|decimal|hexadecimal|address)\b/i.test(stem);
+}
+
 export default {
   async fetch(request, env) {
     const fail = (status, error) => Response.json({error}, {status});
@@ -41,7 +47,8 @@ export default {
         ? "Solve the question, using the computed operand facts when relevant. For sequences simulate events in order. Check exceptions and units. Give one short explanation, then copy the exact text of each correct option into selected. For a single-choice question select exactly one. Return an empty selection only if essential information is missing."
         : "Use the computed operand facts where relevant. Follow the requested answer format, including leading zeros. Answer briefly.";
       const facts=calculationFacts(stem,choices);
-      const result=await env.AI.run("@cf/meta/llama-3.3-70b-instruct-fp8-fast",{
+      const model = needsNumericAnswer(stem, choices) ? "@cf/openai/gpt-oss-120b" : "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
+      const result=await env.AI.run(model,{
         ...(mark ? {response_format:{type:"json_schema",json_schema:{type:"object",properties:{explanation:{type:"string"},selected:{type:"array",items:{type:"string",enum:[...new Set(choices)]},maxItems:multiple?choices.length:1}},required:["explanation","selected"]}}} : {}),
         messages:[{role:"system",content:instruction},{role:"user",content:JSON.stringify({stem,choices,multiple,facts})}],max_tokens:250
       });
