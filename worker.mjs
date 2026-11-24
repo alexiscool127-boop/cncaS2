@@ -1,3 +1,4 @@
+import {calculationFacts} from "./calculations.mjs";
 export default {
   async fetch(request, env) {
     const fail = (status, error) => Response.json({error}, {status});
@@ -37,12 +38,12 @@ export default {
       }
       const mark = question.mark === true && choices.length > 0;
       const instruction = mark
-        ? "First solve the question in one short sentence. Check any arithmetic. Then select the options consistent with that solution. Include the sentence in explanation. Return a JSON object with a positions array of 1-based option positions. Use an empty array only when the question cannot be answered. Respect select-all. Count positions from the supplied order, ignoring any printed option labels."
-        : "Answer briefly. For choices, quote the selected text and briefly explain.";
-      const options = mark ? choices.map((text,i)=>({position:i+1,text})) : choices;
+        ? "Solve the question, using the computed operand facts when relevant. For sequences simulate events in order. Check exceptions and units. Give one short explanation, then copy the exact text of each correct option into selected. For a single-choice question select exactly one. Return an empty selection only if essential information is missing."
+        : "Use the computed operand facts where relevant. Follow the requested answer format, including leading zeros. Answer briefly.";
+      const facts=calculationFacts(stem,choices);
       const result=await env.AI.run("@cf/meta/llama-3.3-70b-instruct-fp8-fast",{
-        ...(mark ? {response_format:{type:"json_schema",json_schema:{type:"object",properties:{explanation:{type:"string"},positions:{type:"array",items:{type:"integer",enum:choices.map((_,i)=>i+1)},maxItems:multiple?choices.length:1}},required:["explanation","positions"]}}} : {}),
-        messages:[{role:"system",content:instruction},{role:"user",content:JSON.stringify({stem,choices:options,multiple})}],max_tokens:250
+        ...(mark ? {response_format:{type:"json_schema",json_schema:{type:"object",properties:{explanation:{type:"string"},selected:{type:"array",items:{type:"string",enum:[...new Set(choices)]},maxItems:multiple?choices.length:1}},required:["explanation","selected"]}}} : {}),
+        messages:[{role:"system",content:instruction},{role:"user",content:JSON.stringify({stem,choices,multiple,facts})}],max_tokens:250
       });
       if(mark){
         let positions,explanation;
@@ -51,7 +52,7 @@ export default {
           if(typeof raw==="string"){
             try{candidate=JSON.parse(raw);}catch{continue;}
           }
-          if(Array.isArray(candidate?.positions)){positions=candidate.positions;explanation=typeof candidate.explanation==="string"?candidate.explanation:"";break;}
+          if(Array.isArray(candidate?.selected)){positions=candidate.selected.map(text=>choices.indexOf(text)===choices.lastIndexOf(text)?choices.indexOf(text)+1:0);explanation=typeof candidate.explanation==="string"?candidate.explanation:"";break;}
         }
         if(!positions || positions.some(i=>!Number.isInteger(i)||i<1||i>choices.length) || (!multiple && positions.length>1))return fail(502,"The model returned an invalid selection.");
         if(!positions.length)return fail(422,"The model could not identify an answer from these choices.");
