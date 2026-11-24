@@ -19,14 +19,22 @@
       if(!box){
         box=document.createElement("div");
         box.className="quizpilot-peek";
-        box.style.cssText="position:fixed;bottom:12px;right:12px;z-index:2147483647;box-sizing:border-box;width:min(280px,90vw);height:min(72px,35vh);overflow:auto;background:#192326;color:white;border-radius:5px;padding:5px 8px;font:12px/1.2 system-ui;white-space:pre-wrap;overflow-wrap:anywhere";
+        box.style.cssText="position:fixed;bottom:12px;right:12px;z-index:2147483647;box-sizing:border-box;width:min(280px,90vw);height:min(72px,35vh);overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;background:#182226;color:#f8fafb;border-radius:5px;padding:5px 8px;font:14px/1.4 system-ui;white-space:pre-wrap;overflow-wrap:anywhere";
+        box.addEventListener("wheel",event=>{
+          if(event.ctrlKey || !event.cancelable)return;
+          const delta=Math.abs(event.deltaY)>=Math.abs(event.deltaX)?event.deltaY:event.deltaX;
+          if(!delta)return;
+          event.preventDefault();
+          event.stopPropagation();
+          const scale=event.deltaMode===1?20:event.deltaMode===2?box.clientHeight:1;
+          box.scrollBy({top:delta*scale,behavior:"instant"});
+        },{passive:false});
         document.body.append(box);
       }
-      box.textContent=[answer,detail || explanation || "Checking sources…"].filter(Boolean).join("\n");
-      for(let size=12;size>=9;size-=0.5){
-        box.style.fontSize=size+"px";
-        if(box.scrollHeight<=box.clientHeight+1)break;
-      }
+      const heading=document.createElement("strong");
+      heading.style.cssText="display:block;font-weight:700;color:white;margin-bottom:2px";
+      heading.textContent=answer;
+      box.replaceChildren(heading,document.createTextNode(detail || explanation || "Checking sources…"));
     }
     const listen={capture:true,signal:controller.signal};
     window.addEventListener("keydown",event=>{
