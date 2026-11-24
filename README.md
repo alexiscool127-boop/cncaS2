@@ -4,7 +4,7 @@ cncaS2 is a Firefox extension for requesting AI suggestions on Moodle questions.
 
 ## Use
 
-Hover over a supported question and press Alt+Z. Open the toolbar popup to read the answer and explanation. Hold Shift after Alt+Z to see the answer and explanation. The first hold sends question text to Google in a background tab. The extension uses up to three search excerpts to explain or correct the answer and shows when sources are unavailable. Version 0.9.1 also checks built-in summaries of relevant standards for selected topics. The fixed-size preview uses 14-pixel text and a bold answer. Hold Shift and scroll anywhere inside the preview with the wheel or trackpad. Shift plus Up or Down also scrolls longer explanations. Release Shift to close the preview. Repeated questions on the same page can reuse a result from memory. Review suggestions before relying on them.
+Hover over a supported question and press Alt+Z. Open the toolbar popup to read the answer and explanation. Hold Shift after Alt+Z to see the answer and explanation. The first hold sends question text to Google in a background tab. The extension uses up to three search excerpts to explain or correct the answer and shows when sources are unavailable. Version 0.9.1 also checks built-in summaries of relevant standards for selected topics. The fixed-size preview starts at 12-pixel text and reduces the size to fit longer answers. Hold Shift and scroll anywhere inside the preview with the wheel or trackpad. Shift plus Up or Down also scrolls longer explanations. Release Shift to close the preview. Repeated questions on the same page can reuse a result from memory. Review suggestions before relying on them.
 
 ## Build and test
 
