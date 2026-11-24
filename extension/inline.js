@@ -16,17 +16,17 @@
           detail=result.text;show();
         }).catch(()=>{detail="Explanation lookup unavailable.";show();});
       }
-      const text=[answer,detail || explanation,detail ? "" : "Checking Google…"].filter(Boolean).join("\n\n");
-      if(box){box.textContent=text;if(box.scrollHeight>box.clientHeight+1){box.style.width="min(330px,90vw)";box.style.maxHeight="min(8.2em,35vh)";}return;}
+      if(!box){
         box=document.createElement("div");
-        box.textContent=text;
-        box.style.cssText="position:fixed;bottom:12px;right:12px;z-index:2147483647;box-sizing:border-box;width:min(300px,90vw);max-height:5.5em;overflow:auto;background:#192326;color:white;border-radius:5px;padding:6px 9px;font:13px/1.4 system-ui;white-space:pre-wrap;overflow-wrap:anywhere";
+        box.className="quizpilot-peek";
+        box.style.cssText="position:fixed;bottom:12px;right:12px;z-index:2147483647;box-sizing:border-box;width:min(280px,90vw);height:min(72px,35vh);overflow:auto;background:#192326;color:white;border-radius:5px;padding:5px 8px;font:12px/1.2 system-ui;white-space:pre-wrap;overflow-wrap:anywhere";
         document.body.append(box);
-        if(box.scrollHeight>box.clientHeight+1){
-          box.style.width="min(330px,90vw)";
-          box.style.maxHeight="min(8.2em,35vh)";
-        }
-
+      }
+      box.textContent=[answer,detail || explanation || "Checking sources…"].filter(Boolean).join("\n");
+      for(let size=12;size>=9;size-=0.5){
+        box.style.fontSize=size+"px";
+        if(box.scrollHeight<=box.clientHeight+1)break;
+      }
     }
     const listen={capture:true,signal:controller.signal};
     window.addEventListener("keydown",event=>{

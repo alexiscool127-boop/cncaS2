@@ -33,6 +33,8 @@ browser.runtime.onMessage.addListener((q,sender)=>{
     if(entries.has(key)){
       const data=entries.get(key);display(data);return data;
     }
+    const calculated=!q.image && !q.choices.length && byteCalculation(q.stem);
+    if(calculated){display(calculated);return calculated;}
     update(tabId,pending);
     try{
     const response=await fetch(QUIZPILOT_ORIGIN+"/public"+(q.image?"/diagram":"/answer"),{method:"POST",credentials:"omit",redirect:"error",
@@ -80,9 +82,14 @@ async function searchExcerpts(stem){
 browser.runtime.onMessage.addListener((q,sender)=>{
   if(!sender.tab || sender.id!==browser.runtime.id || q?.kind!=="quizpilot-explain")return;
   return (async()=>{
-    const sources=await searchExcerpts(q.stem).catch(()=>[]);
-    const labels=sources.map((s,i)=>"["+ (i+1) +"] "+s.host+" — "+s.title);
-    const status=sources.length?labels.join("\n"):"Google returned no usable sources.";
+    const google=await searchExcerpts(q.stem).catch(()=>[]);
+    const refs=referencesFor(q.stem);
+    const sources=[...refs,...google].slice(0,3);
+    const labels=sources.map((s,i)=>"["+ (i+1) +"] "+(s.url?s.title+" "+s.url:s.host+" — "+s.title));
+    const status=sources.map((s,i)=>"["+(i+1)+"] "+(s.url?s.title:s.host)).join(" · ");
+    const calculated=byteCalculation(q.stem);
+    if(calculated)return {text:calculated.explanation+" · "+refs[0].title};
+
     try{
       const response=await fetch(QUIZPILOT_ORIGIN+"/public/explain",{
         method:"POST",credentials:"omit",redirect:"error",headers:{"Content-Type":"application/json"},
@@ -91,7 +98,7 @@ browser.runtime.onMessage.addListener((q,sender)=>{
       });
       if(!response.ok)throw Error();
       const data=await response.json();
-      return {text:data.text+"\n\n"+status};
-    }catch{return {text:[q.reason || "Explanation unavailable.",status].join("\n\n")};}
+      return {text:(sources.length?"":"Unverified. ")+[data.text,status].filter(Boolean).join("\n")};
+    }catch{return {text:[q.reason || "Explanation unavailable.","Unverified."].join("\n\n")};}
   })();
 });
