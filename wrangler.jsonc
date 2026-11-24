@@ -1,0 +1,5 @@
+{
+  "name":"quizpilot-college","main":"worker.mjs","compatibility_date":"2026-01-01",
+  "ai":{"binding":"AI"},
+  "ratelimits":[{"name":"LIMIT","namespace_id":"1001","simple":{"limit":12,"period":60}}]
+}
