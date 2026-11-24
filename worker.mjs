@@ -5,6 +5,23 @@ function needsNumericAnswer(stem, choices) {
     || /\b(?:return|give|enter|write|express|represent|encode|decode)\b[^.!?\n]{0,80}\b(?:number|integer|digits?|bits?|binary|decimal|hexadecimal|address)\b/i.test(stem);
 }
 
+// Structured responses may arrive as objects or JSON text, sometimes in a code fence.
+function readSelection(raw, choices, multiple) {
+  if (typeof raw === "string") {
+    const trimmed = raw.trim();
+    const fenced = /^```(?:json)?\s*([\s\S]*?)\s*```$/i.exec(trimmed);
+    try { raw = JSON.parse(fenced ? fenced[1] : trimmed); }
+    catch { return null; }
+  }
+  if (!Array.isArray(raw?.selected)) return null;
+  const positions = raw.selected.map(text =>
+    typeof text === "string" && choices.indexOf(text) === choices.lastIndexOf(text)
+      ? choices.indexOf(text) + 1 : 0
+  );
+  if (!positions.every(i => i > 0) || (!multiple && positions.length > 1)) return null;
+  return { positions: [...new Set(positions)], explanation: typeof raw.explanation === "string" ? raw.explanation : "" };
+}
+
 export default {
   async fetch(request, env) {
     const fail = (status, error) => Response.json({error}, {status});
@@ -65,17 +82,14 @@ export default {
         messages:[{role:"system",content:instruction},{role:"user",content:JSON.stringify({stem,choices,multiple,facts})}],max_tokens:250
       });
       if(mark){
-        let positions,explanation;
+        let selection;
         for(const raw of [result?.response,result?.choices?.[0]?.message?.content]){
-          let candidate=raw;
-          if(typeof raw==="string"){
-            try{candidate=JSON.parse(raw);}catch{continue;}
-          }
-          if(Array.isArray(candidate?.selected)){positions=candidate.selected.map(text=>choices.indexOf(text)===choices.lastIndexOf(text)?choices.indexOf(text)+1:0);explanation=typeof candidate.explanation==="string"?candidate.explanation:"";break;}
+          selection=readSelection(raw,choices,multiple);
+          if(selection)break;
         }
-        if(!positions || positions.some(i=>!Number.isInteger(i)||i<1||i>choices.length) || (!multiple && positions.length>1))return fail(502,"The model returned an invalid selection.");
-        if(!positions.length)return fail(422,"The model could not identify an answer from these choices.");
-        return Response.json({positions:[...new Set(positions)],explanation},{headers:{"Cache-Control":"no-store"}});
+        if(!selection)return fail(502,"The model returned an invalid selection.");
+        if(!selection.positions.length)return fail(422,"The model could not identify an answer from these choices.");
+        return Response.json(selection,{headers:{"Cache-Control":"no-store"}});
       }
       const raw=result?.choices?.[0]?.message?.content ?? result?.response;
       const answer=typeof raw==="string" || typeof raw==="number" ? String(raw).trim() : "";

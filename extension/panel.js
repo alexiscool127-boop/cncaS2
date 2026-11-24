@@ -1,4 +1,5 @@
 const status=document.querySelector("#status");
+document.querySelector("#version").textContent="v"+browser.runtime.getManifest().version;
 function sizeForAnswer(){
   document.body.classList.remove("roomy");
   const overflow=["#written","#reason"].some(selector=>{

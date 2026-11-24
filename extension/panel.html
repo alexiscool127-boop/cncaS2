@@ -1,5 +1,67 @@
-<!doctype html><html lang="en"><meta charset="utf-8"><title>cncaS2</title>
-<style>body{width:270px;padding:14px;font:15px system-ui;background:#13232a;color:white}input,button{box-sizing:border-box;width:100%;padding:8px;margin:4px 0}button{background:#a8e7cb;border:0;border-radius:4px}#written,#reason{max-height:120px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere}body.roomy{width:300px}body.roomy #written,body.roomy #reason{max-height:158px}#subject{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}</style>
-<h2>cncaS2</h2><section id="result" hidden><strong id="subject"></strong><p id="written" role="status" tabindex="0"></p><button id="explain" hidden>Explain (E)</button><p id="reason" hidden></p></section>
-<button id="netacad">Open NetAcad for MeowCad</button><small>Requires <a href="https://addons.mozilla.org/firefox/addon/meowcad-solver/" target="_blank" rel="noopener noreferrer">MeowCad Solver</a>, installed separately.</small>
-<p role="status" id="status"></p><script src="panel.js"></script></html>
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>cncaS2</title>
+<style>
+  :root{color-scheme:dark}
+  *{box-sizing:border-box}
+  body{width:312px;margin:0;padding:15px;font:13px/1.4 system-ui;background:#13232a;color:#e9f6f4}
+  h2{font-size:17px;margin:0 0 11px;color:white}
+  h3{font-size:13px;margin:0;color:#f4fffd}
+  small,.muted{color:#a6c1bd;font-size:11px}
+  p{margin:8px 0}
+  a{color:#b5f2d6}
+  button,.upload{border:1px solid #72bba8;background:#a8e7cb;color:#123129;border-radius:7px;padding:8px 10px;font:600 12px system-ui;cursor:pointer}
+  button:disabled{opacity:.5;cursor:default}
+  button:focus-visible,.upload:focus-visible{outline:2px solid #fff;outline-offset:2px}
+  #netacad{width:100%;margin:8px 0 4px}
+  #subject{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #written,#reason{max-height:120px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere}
+  body.roomy{width:330px}
+  body.roomy #written,body.roomy #reason{max-height:158px}
+  .notes{border:1px solid #365d5a;background:#182e32;border-radius:9px;margin-top:14px;padding:11px}
+  .notes-top,.progress-top,.note-row,.actions{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .actions{margin:10px 0 2px;justify-content:flex-start}
+  .upload{display:inline-flex;align-items:center;justify-content:center;flex:1}
+  #backup-notes{background:transparent;color:#c9f6e9;border-color:#477a70}
+  #notes-input{display:none}
+  #notes-progress-wrap{margin-top:10px}
+  progress{display:block;width:100%;height:11px;margin-top:5px;accent-color:#a8e7cb}
+  #notes-feedback{font-size:11px;color:#c8f5e7;overflow-wrap:anywhere}
+  #note-list{padding:0;margin:8px 0;list-style:none;max-height:132px;overflow-y:auto}
+  .note-row{padding:5px 0;border-top:1px solid #2c4f4c}
+  .note-row span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .note-row button{flex:none;padding:2px 6px;background:transparent;color:#d3e9e2;border:1px solid #52726d}
+  .detail{font-size:11px;color:#b3d0c8}
+</style>
+<h2>cncaS2 <small id="version"></small></h2>
+<section id="result" hidden>
+  <strong id="subject"></strong>
+  <p id="written" role="status" tabindex="0"></p>
+  <button id="explain" hidden>Explain (E)</button>
+  <p id="reason" hidden></p>
+</section>
+<button id="netacad">Open NetAcad for MeowCad</button>
+<small>Requires <a href="https://addons.mozilla.org/firefox/addon/meowcad-solver/" target="_blank" rel="noopener noreferrer">MeowCad Solver</a> separately.</small>
+<p role="status" id="status"></p>
+<section class="notes" aria-labelledby="notes-heading">
+  <div class="notes-top"><h3 id="notes-heading">My study notes</h3><span id="notes-count" class="detail">0 files</span></div>
+  <p class="detail">Add your notes for automatic extraction and a secondary AI cross-check.</p>
+  <div class="actions">
+    <label class="upload" for="notes-input">+ Add notes / ZIP</label>
+    <input id="notes-input" type="file" multiple accept=".zip,.txt,.md,.csv,.json,.html,.htm,.xml,.log,.pdf,.pptx,.docx,.xlsx">
+    <button id="backup-notes" type="button">Backup</button>
+  </div>
+  <div id="notes-progress-wrap" hidden>
+    <div class="progress-top"><span id="notes-stage" class="detail">Reading…</span><span id="notes-percent" class="detail">0%</span></div>
+    <progress id="notes-progress" value="0" max="100" aria-label="Notes import progress"></progress>
+  </div>
+  <p id="notes-feedback" role="status" aria-live="polite"></p>
+  <ul id="note-list"></ul>
+  <small>ZIP archives, PDF, PowerPoint, Word, Excel and text files. Scanned/image-only pages need OCR. Backup before removing a temporary add-on.</small>
+</section>
+<script src="panel.js"></script>
+<script src="notes-pdf.js"></script>
+<script src="notes-import.js"></script>
+<script src="notes-ui.js"></script>
+</html>

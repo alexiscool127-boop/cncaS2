@@ -71,13 +71,17 @@
   if(block.dataset.quizpilotBusy)return;
   const questionText=block.querySelector(".qtext");
   const answerArea=block.querySelector(".answer");
+  const textInputSelector='select,input:not([type]),input[type="text"],input[type="number"],textarea';
   const blanks=[];
   function readPrompt(area){
     if(!area)return "";
     const copy=area.cloneNode(true);
     copy.querySelectorAll("script,style,[hidden],.accesshide,.sr-only,.quizpilot-mark").forEach(el=>el.remove());
     for(const field of copy.querySelectorAll("select,input,textarea")){
-      if(field.matches('input[type="hidden"]')){field.remove();continue;}
+      if(!field.matches(textInputSelector)){
+        if(field.matches('input[type="hidden"]'))field.remove();
+        continue;
+      }
       const index=blanks.length+1;
       const options=[...field.querySelectorAll("option")].filter(o=>o.getAttribute("value")!=="" && !/^choose(?:\.{3}|…)?$/i.test(o.textContent.trim())).map(o=>o.textContent.trim()).filter(Boolean);
       blanks.push(options);
@@ -87,12 +91,12 @@
     copy.querySelectorAll("p,tr,li,div").forEach(el=>el.append(document.createTextNode("\n")));
     return copy.textContent.trim();
   }
-  const embedded=questionText?.querySelector("select,input:not([type=hidden]),textarea");
-  const dropdown=answerArea?.querySelector("select");
-  let stem=questionText?.innerText.trim();
-  if(embedded || dropdown){
+  const embedded=questionText?.querySelector(textInputSelector);
+  const answerBlank=answerArea?.querySelector(textInputSelector);
+  let stem=questionText?.innerText.trim() || "";
+  if(embedded || answerBlank){
     stem=readPrompt(questionText);
-    if(dropdown && !questionText?.contains(answerArea))stem+="\n"+readPrompt(answerArea);
+    if(answerBlank && !questionText?.contains(answerArea))stem+="\n"+readPrompt(answerArea);
     stem+="\nGive a numbered answer for each blank."+blanks.map((options,i)=>options.length?"\nBlank "+(i+1)+" options: "+options.join(" | "):"").join("");
   }
   const fields=[...block.querySelectorAll('.answer input[type="radio"],.answer input[type="checkbox"]')];
