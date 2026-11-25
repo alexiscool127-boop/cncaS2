@@ -1,6 +1,6 @@
 # cncaS2
 
-cncaS2 is a Firefox extension for requesting AI suggestions on Moodle questions. It uses a Cloudflare Worker. The NetAcad launcher opens Cisco Networking Academy, where the separately installed MeowCad Solver extension can operate.
+cncaS2 is a Firefox extension for requesting AI suggestions on Moodle questions. It uses a Cloudflare Worker.
 
 ## Use
 
@@ -15,6 +15,8 @@ Version 0.9.9 adds **My study notes** to the toolbar popup. Choose Add notes to 
 The toolbar button now has a faint translucent icon and a visually blank tooltip. The installed extension name remains `cncaS2`, as Firefox requires a name. User-imported notes are local to the Firefox profile. **Temporary add-ons loaded through `about:debugging` are removed on browser restart, and removing/reinstalling an add-on can erase its storage.** Use Backup in the popup to download the imported-notes JSON first, then re-import that JSON after reinstalling. The ZIP itself still contains any bundled notes independently of local imports.
 
 Version 0.9.10 accepts ZIP files in the popup. It unpacks an archive in the browser, recursively processes supported Office, PDF and text documents (including nested ZIPs to two levels), reports unsupported or unreadable entries, and indexes matching text into the same local notes store. PDF.js (Mozilla's Apache-2.0-licensed text reader) extracts selectable text from ordinary PDFs. Image-only and scanned pages still require OCR. The importer enforces per-file, entry-count, and total decompression limits to guard against oversized archives. Only extracted text is retained, not the source ZIP or Office files. Cloud sync is not enabled; notes remain on each Firefox profile unless restored from a backup.
+
+Version 0.9.11 collects search snippets with direct background requests, without opening browser tabs. It tries Google first and uses DuckDuckGo's plain-HTML results when Google returns no usable snippets. If neither works, it still answers with available standards references and optional study notes. The former NetAcad launcher was removed so the extension has no tab-opening actions. Search queries are sent to Google and, if necessary, DuckDuckGo when answering or explaining a question.
 
 ## Build and test
 

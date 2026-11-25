@@ -45,12 +45,15 @@ test("Google and standards references precede relevant course notes",async()=>{
     runtime:{id:"test-extension",getURL:()=>"moz-extension://test/panel.html",
       onConnect:{addListener},onMessage:{addListener:fn=>listeners.push(fn)}},
     tabs:{onRemoved:{addListener},onUpdated:{addListener},
-      create:async()=>({id:42}),executeScript:async()=>[[{host:"example.org",title:"External database guide",snippet:"Verified external definition."}]],
-      get:async()=>({active:false}),remove:async()=>{}},
+      create:()=>{throw Error("The extension must not open a tab.");}},
     commands:{onCommand:{addListener}}
   };
   Object.assign(context,{
-    fetch:async(_url,options)=>{captured=JSON.parse(options.body);return Response.json({text:"Corroborated explanation."});},
+    fetch:async(url,options)=>{
+      if(String(url).startsWith("https://www.google.com/search"))return new Response("<html>Search results</html>",{headers:{"Content-Type":"text/html"}});
+      captured=JSON.parse(options.body);return Response.json({text:"Corroborated explanation."});
+    },
+    parseGoogleSearchResults:()=>[{host:"example.org",title:"External database guide",snippet:"Verified external definition."}],
     referencesFor:()=>[{title:"Official standards",url:"https://example.edu/standard",snippet:"Independent reference."}],
     byteCalculation:()=>null,QUIZPILOT_ORIGIN:"https://test.example",AbortSignal,URL,Response,
     setTimeout:(cb)=>cb()
@@ -75,16 +78,19 @@ test("search and notes are gathered before the first AI answer request",async()=
     runtime:{id:"test-extension",getURL:()=>"moz-extension://test/panel.html",
       onConnect:{addListener},onMessage:{addListener:fn=>listeners.push(fn)}},
     tabs:{onRemoved:{addListener},onUpdated:{addListener},
-      create:async()=>{events.push("google-search");return {id:42};},
-      executeScript:async()=>[[{host:"example.org",title:"External database guide",snippet:"Normalization prevents redundant records."}]],
-      get:async()=>({active:false}),remove:async()=>{}},
+      create:()=>{throw Error("The extension must not open a tab.");}},
     commands:{onCommand:{addListener}}
   };
   Object.assign(context,{
-    fetch:async(_url,options)=>{
+    fetch:async(url,options)=>{
+      if(String(url).startsWith("https://www.google.com/search")){
+        events.push("google-search");
+        return new Response("<html>Search results</html>",{headers:{"Content-Type":"text/html"}});
+      }
       events.push("ai-answer");submitted=JSON.parse(options.body);
       return Response.json({positions:[1],explanation:"Normalization reduces duplicate data."});
     },
+    parseGoogleSearchResults:()=>[{host:"example.org",title:"External database guide",snippet:"Normalization prevents redundant records."}],
     referencesFor:()=>[{title:"Official standards",url:"https://example.edu/standard",snippet:"Independent database reference."}],
     byteCalculation:()=>null,QUIZPILOT_ORIGIN:"https://test.example",AbortSignal,URL,Response,
     setTimeout:cb=>cb()
@@ -111,12 +117,15 @@ test("new local notes reach the answer model and invalidate an older cached answ
   context.browser={
     runtime:{id:"test-extension",getURL:()=>"moz-extension://test/panel.html",
       onConnect:{addListener},onMessage:{addListener:fn=>listeners.push(fn)}},
-    tabs:{onRemoved:{addListener},onUpdated:{addListener},create:async()=>{throw Error("Google offline");}},
+    tabs:{onRemoved:{addListener},onUpdated:{addListener},create:()=>{throw Error("The extension must not open a tab.");}},
     commands:{onCommand:{addListener}},
     storage:{local:{get:async()=>({userNotes:note1})},onChanged:{addListener:fn=>changes.push(fn)}}
   };
   Object.assign(context,{
-    fetch:async(_url,options)=>{requests++;stems.push(JSON.parse(options.body).stem);return Response.json({positions:[1]});},
+    fetch:async(url,options)=>{
+      if(/https:\/\/(?:www\.google\.com\/search|html\.duckduckgo\.com\/html\/)/.test(String(url)))throw Error("Search offline");
+      requests++;stems.push(JSON.parse(options.body).stem);return Response.json({positions:[1]});
+    },
     referencesFor:()=>[],byteCalculation:()=>null,QUIZPILOT_ORIGIN:"https://test.example",AbortSignal,URL,Response,setTimeout
   });
   runInContext(readFileSync("extension/background.js","utf8"),context);
@@ -129,4 +138,43 @@ test("new local notes reach the answer model and invalidate an older cached answ
   await send();
   assert.equal(requests,2);
   assert.match(stems[1],/updated\.txt/);
+});
+
+test("uses a tab-free HTML search fallback when Google provides no snippets",async()=>{
+  const context=makeNotesContext([]);
+  const listeners=[],events=[];
+  const addListener=()=>{};
+  context.browser={
+    runtime:{id:"test-extension",getURL:()=>"moz-extension://test/panel.html",
+      onConnect:{addListener},onMessage:{addListener:fn=>listeners.push(fn)}},
+    tabs:{onRemoved:{addListener},onUpdated:{addListener},
+      create:()=>{throw Error("The extension must not open a tab.");}},
+    commands:{onCommand:{addListener}}
+  };
+  let submitted;
+  Object.assign(context,{
+    fetch:async(url,options)=>{
+      if(String(url).startsWith("https://www.google.com/search")){
+        events.push("google");
+        return new Response("<html>No search results</html>",{headers:{"Content-Type":"text/html"}});
+      }
+      if(String(url).startsWith("https://html.duckduckgo.com/html/")){
+        events.push("backup-search");
+        return new Response("<html>Backup results</html>",{headers:{"Content-Type":"text/html"}});
+      }
+      events.push("ai");submitted=JSON.parse(options.body);
+      return Response.json({positions:[1]});
+    },
+    parseGoogleSearchResults:()=>[],
+    parseDuckDuckGoSearchResults:()=>[{host:"example.org",title:"Database definition",snippet:"A secondary independent source."}],
+    referencesFor:()=>[],byteCalculation:()=>null,
+    QUIZPILOT_ORIGIN:"https://test.example",AbortSignal,URL,Response,setTimeout
+  });
+  runInContext(readFileSync("extension/background.js","utf8"),context);
+  const question={kind:"quizpilot-answer",stem:"What is a database?",choices:["A data store","A printer"],multiple:false};
+  const send=listeners.map(fn=>fn(question,{tab:{id:1},id:"test-extension"})).find(Boolean);
+  const result=await send;
+  assert.deepEqual(events,["google","backup-search","ai"]);
+  assert.match(submitted.stem,/Database definition/);
+  assert.deepEqual(result.positions,[1]);
 });

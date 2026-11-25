@@ -13,12 +13,15 @@ function extensionWithFetch(fetch) {
       id: "test-extension", getURL: path => "moz-extension://test/" + path,
       onConnect: { addListener }, onMessage: { addListener: fn => listeners.push(fn) }
     },
-    tabs: { onRemoved: { addListener }, onUpdated: { addListener } },
+    tabs: { onRemoved: { addListener }, onUpdated: { addListener },
+      create: () => { throw Error("Answering must not open a tab."); } },
     commands: { onCommand: { addListener } }
   };
   runInNewContext(readFileSync("extension/background.js", "utf8"), {
-    browser, fetch, QUIZPILOT_ORIGIN: "https://test.example", byteCalculation: () => null,
-    referencesFor: () => [], AbortSignal, setTimeout, URL
+    browser, fetch: (url, options) => /https:\/\/(?:www\.google\.com\/search|html\.duckduckgo\.com\/html\/)/.test(String(url))
+      ? Response.json({}, { status: 503 }) : fetch(url, options),
+    QUIZPILOT_ORIGIN: "https://test.example", byteCalculation: () => null,
+    referencesFor: () => [], parseGoogleSearchResults: () => [], AbortSignal, setTimeout, URL
   });
   return () => listeners.map(fn => fn(question, { tab: { id: 1 }, id: "test-extension" })).find(Boolean);
 }

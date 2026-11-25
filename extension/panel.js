@@ -8,10 +8,6 @@ function sizeForAnswer(){
   });
   document.body.classList.toggle("roomy",overflow);
 }
-document.querySelector("#netacad").onclick=async()=>{
-  await browser.tabs.create({url:"https://www.netacad.com/"});
-  window.close();
-};
 (async()=>{
   const [tab]=await browser.tabs.query({active:true,currentWindow:true});
   if(!tab)return;

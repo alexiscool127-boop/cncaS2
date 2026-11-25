@@ -96,23 +96,29 @@ browser.commands.onCommand.addListener(async command=>{
   catch{await browser.browserAction.setBadgeText({tabId:tab.id,text:"!"});}
 });
 
-async function searchExcerpts(stem){
-  const url=new URL("https://www.google.com/search");
-  url.searchParams.set("q",stem.split("\nGive a numbered answer")[0].slice(0,280));
-  const tab=await browser.tabs.create({url:url.href,active:false});
+async function fetchSearchResults(url,parse){
   try{
-    for(let i=0;i<12;i++){
-      await new Promise(resolve=>setTimeout(resolve,500));
-      try{
-        const [sources]=await browser.tabs.executeScript(tab.id,{file:"search-results.js"});
-        if(sources?.length)return sources;
-      }catch{/* The results page may still be navigating. */}
-    }
-    return [];
-  }finally{
-    const current=await browser.tabs.get(tab.id).catch(()=>null);
-    if(current && !current.active)await browser.tabs.remove(tab.id).catch(()=>{});
-  }
+    // Search in the extension background page; never navigate a browser tab.
+    const response=await fetch(url.href,{method:"GET",credentials:"omit",redirect:"follow",
+      signal:AbortSignal.timeout(5000)});
+    if(!response.ok)return [];
+    const type=(response.headers.get("Content-Type")||"").toLowerCase();
+    if(type && !type.includes("text/html"))return [];
+    return parse((await response.text()).slice(0,750000));
+  }catch{return [];}
+}
+
+async function searchExcerpts(stem){
+  const query=stem.split("\nGive a numbered answer")[0].slice(0,280);
+  const google=new URL("https://www.google.com/search");
+  google.searchParams.set("q",query);
+  const results=await fetchSearchResults(google,parseGoogleSearchResults);
+  if(results.length)return results;
+  // A no-cookie Google response sometimes has no result snippets. Use a
+  // plain-HTML search fallback, again without opening a tab.
+  const fallback=new URL("https://html.duckduckgo.com/html/");
+  fallback.searchParams.set("q",query);
+  return fetchSearchResults(fallback,parseDuckDuckGoSearchResults);
 }
 
 async function sourcesForStem(stem){
